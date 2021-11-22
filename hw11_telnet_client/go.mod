@@ -1,4 +1,4 @@
-module github.com/fixme_my_friend/hw11_telnet_client
+module github.com/alexei38/otus_hw/hw11_telnet_client
 
 go 1.16
 
