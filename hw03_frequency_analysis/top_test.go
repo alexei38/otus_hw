@@ -1,13 +1,14 @@
 package hw03frequencyanalysis
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 // Change to true if needed.
-var taskWithAsteriskIsCompleted = false
+var taskWithAsteriskIsCompleted = true
 
 var text = `Как видите, он  спускается  по  лестнице  вслед  за  своим
 	другом   Кристофером   Робином,   головой   вниз,  пересчитывая
@@ -79,4 +80,66 @@ func TestTop10(t *testing.T) {
 			require.Equal(t, expected, Top10(text))
 		}
 	})
+}
+
+func TestTopN(t *testing.T) {
+	tests := [9]int{-50, 0, 3, 15, 18, 20, 181, 181, 999}
+	const CountWords = 180
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(fmt.Sprintf("TestTop%d", tc), func(t *testing.T) {
+			result := Top(text, tc)
+			switch {
+			case tc < 0:
+				require.Len(t, result, 0)
+			case tc > CountWords:
+				require.Len(t, result, CountWords)
+			default:
+				require.Len(t, result, tc)
+			}
+		})
+	}
+}
+
+func TestCountWords(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected map[string]int
+	}{
+		{
+			name:     "groupLeg",
+			input:    "Нога нога нога, нога. Нога!",
+			expected: map[string]int{"нога": 5},
+		},
+		{
+			name:  "separateLeg",
+			input: "- В Ногу - нога! ногой, ноге!",
+			expected: map[string]int{
+				"в":     1,
+				"ногу":  1,
+				"нога":  1,
+				"ногой": 1,
+				"ноге":  1,
+			},
+		},
+		{
+			name:  "someWords",
+			input: "Какой-то Какой-то Какой-то какой какойто какойто!",
+			expected: map[string]int{
+				"какой-то": 3,
+				"какой":    1,
+				"какойто":  2,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			result := countWords(tc.input)
+			require.Equal(t, tc.expected, result)
+		})
+	}
 }
