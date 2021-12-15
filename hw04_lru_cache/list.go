@@ -1,5 +1,7 @@
 package hw04lrucache
 
+import "fmt"
+
 type List interface {
 	Len() int
 	Front() *ListItem
@@ -17,10 +19,93 @@ type ListItem struct {
 }
 
 type list struct {
-	List // Remove me after realization.
-	// Place your code here.
+	lastNode  *ListItem
+	firstNode *ListItem
+	len       int
+}
+
+func (l *list) Len() int {
+	return l.len
+}
+
+func (l *list) Front() *ListItem {
+	return l.firstNode
+}
+
+func (l *list) Back() *ListItem {
+	return l.lastNode
+}
+
+func (l *list) PushFront(v interface{}) *ListItem {
+	var item *ListItem
+	switch v.(type) {
+	case *ListItem:
+		item = v.(*ListItem)
+	default:
+		item = &ListItem{Value: v}
+	}
+	if l.firstNode != nil {
+		item.Next = l.firstNode
+		item.Next.Prev = item
+	}
+	l.firstNode = item
+	if l.lastNode == nil {
+		l.lastNode = item
+	}
+	l.len++
+	return item
+}
+
+func (l *list) PushBack(v interface{}) *ListItem {
+	var item *ListItem
+	switch v.(type) {
+	case *ListItem:
+		item = v.(*ListItem)
+	default:
+		item = &ListItem{Value: v}
+	}
+
+	if l.firstNode == nil {
+		l.firstNode = item
+	}
+	if l.lastNode != nil {
+		l.lastNode.Next = item
+		item.Prev = l.lastNode
+	}
+	l.lastNode = item
+	l.len++
+	return item
+}
+
+func (l *list) Remove(i *ListItem) {
+	if i == nil {
+		return
+	}
+	if i.Prev != nil {
+		i.Prev.Next = i.Next
+	}
+	if i.Next != nil {
+		i.Next.Prev = i.Prev
+	}
+	if i == l.lastNode {
+		if i.Prev != nil {
+			l.lastNode = i.Prev
+		} else {
+			l.lastNode = nil
+		}
+	}
+	l.len--
+}
+
+func (l *list) MoveToFront(i *ListItem) {
+	fmt.Println("MoveToFront")
+	if i != l.firstNode {
+		l.Remove(i)
+		l.PushFront(i)
+	}
 }
 
 func NewList() List {
-	return new(list)
+	var l List = &list{}
+	return l
 }
