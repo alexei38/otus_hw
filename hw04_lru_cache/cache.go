@@ -21,8 +21,9 @@ type lruCache struct {
 
 func (c *lruCache) Set(key Key, value interface{}) bool {
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	old, ok := c.items[key]
-	c.mutex.Unlock()
 
 	if ok {
 		c.queue.Remove(old)
@@ -32,23 +33,20 @@ func (c *lruCache) Set(key Key, value interface{}) bool {
 		if !ok {
 			panic("cache is corrupted")
 		}
-		c.mutex.Lock()
 		delete(c.items, removeCacheItem.key)
-		c.mutex.Unlock()
 		c.queue.Remove(removeItem)
 	}
 	cItem := newCacheItem(key, value)
 	item := c.queue.PushFront(cItem)
-	c.mutex.Lock()
 	c.items[key] = item
-	c.mutex.Unlock()
 	return ok
 }
 
 func (c *lruCache) Get(key Key) (interface{}, bool) {
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	item, ok := c.items[key]
-	c.mutex.Unlock()
 	if ok {
 		c.queue.MoveToFront(item)
 		cItem, ok := item.Value.(*cacheItem)
