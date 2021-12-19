@@ -1,6 +1,7 @@
 package hw04lrucache
 
 import (
+	"fmt"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -50,12 +51,46 @@ func TestCache(t *testing.T) {
 	})
 
 	t.Run("purge logic", func(t *testing.T) {
-		// Write me
+		c := NewCache(3)
+		for i := 0; i < 4; i++ {
+			c.Set(Key(fmt.Sprintf("key%d", i)), i)
+		}
+		_, ok := c.Get("key0")
+		require.False(t, ok)
+
+		for i := 1; i < 4; i++ {
+			val, ok := c.Get(Key(fmt.Sprintf("key%d", i)))
+			require.True(t, ok)
+			require.Equal(t, i, val)
+		}
+
+		val, ok := c.Get("key1")
+		require.True(t, ok)
+		require.Equal(t, 1, val)
+
+		val, ok = c.Get("key2")
+		require.True(t, ok)
+		require.Equal(t, 2, val)
+
+		val, ok = c.Get("key3")
+		require.True(t, ok)
+		require.Equal(t, 3, val)
+
+		val, ok = c.Get("key1")
+		require.True(t, ok)
+		require.Equal(t, 1, val)
+
+		// Add new item
+		c.Set("key4", 4)
+
+		// Removed old item
+		_, ok = c.Get("key2")
+		require.False(t, ok)
 	})
 }
 
 func TestCacheMultithreading(t *testing.T) {
-	t.Skip() // Remove me if task with asterisk completed.
+	// t.Skip() // Remove me if task with asterisk completed.
 
 	c := NewCache(10)
 	wg := &sync.WaitGroup{}
