@@ -6,14 +6,14 @@ import (
 	"sync/atomic"
 )
 
-var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
-
-type Executor interface {
-	Run([]Task) error
-}
+var (
+	ErrErrorsLimitExceeded   = errors.New("errors limit exceeded")
+	ErrErrorsNegativeWorkers = errors.New("workers should be > 0")
+	ErrErrorsNegativeErrors  = errors.New("errors should be >= 0")
+)
 
 type TaskExecutor struct {
-	Workers   int
+	workers   int
 	errors    int32
 	maxErrors int32
 }
@@ -39,20 +39,13 @@ func (t *TaskExecutor) runWorker(wg *sync.WaitGroup, taskCh <-chan Task) {
 	}
 }
 
-func (t *TaskExecutor) getErrors() error {
-	if t.errors >= t.maxErrors {
-		return ErrErrorsLimitExceeded
-	}
-	return nil
-}
-
 func (t *TaskExecutor) Run(tasks []Task) error {
 	// Буферизированный канал, чтобы не блокироваться на записи в канал
 	// если все воркеры закончат работу раньше времени из-за ошибок
 	taskCh := make(chan Task, len(tasks))
 	wg := &sync.WaitGroup{}
-	wg.Add(t.Workers)
-	for i := 0; i < t.Workers; i++ {
+	wg.Add(t.workers)
+	for i := 0; i < t.workers; i++ {
 		go t.runWorker(wg, taskCh)
 	}
 	for _, task := range tasks {
@@ -61,13 +54,22 @@ func (t *TaskExecutor) Run(tasks []Task) error {
 	// Как записали все задачи в канал, закрываем канал и ждем, когда воркеры их обработают
 	close(taskCh)
 	wg.Wait()
-	return t.getErrors()
+	if t.errors >= t.maxErrors {
+		return ErrErrorsLimitExceeded
+	}
+	return nil
 }
 
 func Run(tasks []Task, n, m int) error {
-	var executor Executor = &TaskExecutor{
+	if n <= 0 {
+		return ErrErrorsNegativeWorkers
+	}
+	if m < 0 {
+		return ErrErrorsNegativeErrors
+	}
+	executor := &TaskExecutor{
 		maxErrors: int32(m),
-		Workers:   n,
+		workers:   n,
 	}
 	return executor.Run(tasks)
 }
