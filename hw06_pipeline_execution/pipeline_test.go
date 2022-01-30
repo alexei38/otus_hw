@@ -91,3 +91,102 @@ func TestPipeline(t *testing.T) {
 		require.Less(t, int64(elapsed), int64(abortDur)+int64(fault))
 	})
 }
+
+func TestPipelineHW(t *testing.T) {
+	// Stage generator
+	g := func(_ string, f func(v interface{}) interface{}) Stage {
+		return func(in In) Out {
+			out := make(Bi)
+			go func() {
+				defer close(out)
+				for v := range in {
+					time.Sleep(sleepPerStage)
+					out <- f(v)
+				}
+			}()
+			return out
+		}
+	}
+
+	stages := []Stage{
+		g("Dummy", func(v interface{}) interface{} { return v }),
+		g("Multiplier (* 2)", func(v interface{}) interface{} { return v.(int) * 2 }),
+		g("Adder (+ 100)", func(v interface{}) interface{} { return v.(int) + 100 }),
+		g("Stringifier", func(v interface{}) interface{} { return strconv.Itoa(v.(int)) }),
+	}
+
+	t.Run("empty stages", func(t *testing.T) {
+		in := make(Bi)
+		data := []int{1, 2, 3, 4, 5}
+
+		go func() {
+			for _, v := range data {
+				in <- v
+			}
+			close(in)
+		}()
+
+		result := make([]int, 0, 10)
+		for s := range ExecutePipeline(in, nil) {
+			result = append(result, s.(int))
+		}
+		require.Equal(t, data, result)
+	})
+
+	t.Run("empty stages with done", func(t *testing.T) {
+		in := make(Bi)
+		done := make(Bi)
+		data := []int{1, 2, 3, 4, 5}
+
+		go func() {
+			for _, v := range data {
+				in <- v
+			}
+			close(done)
+		}()
+
+		result := make([]int, 0, 10)
+		for s := range ExecutePipeline(in, done) {
+			result = append(result, s.(int))
+		}
+		require.Equal(t, data, result)
+	})
+
+	t.Run("nil stages", func(t *testing.T) {
+		in := make(Bi)
+		data := []int{1, 2, 3, 4, 5}
+
+		go func() {
+			for _, v := range data {
+				in <- v
+			}
+			close(in)
+		}()
+
+		result := make([]int, 0, 10)
+		for s := range ExecutePipeline(in, nil, nil) {
+			result = append(result, s.(int))
+		}
+		require.Equal(t, data, result)
+	})
+
+	t.Run("start done closed", func(t *testing.T) {
+		in := make(Bi)
+		done := make(Bi)
+		close(done)
+
+		data := []int{1, 2, 3, 4, 5}
+
+		go func() {
+			for _, v := range data {
+				in <- v
+			}
+		}()
+
+		result := make([]int, 0, 10)
+		for s := range ExecutePipeline(in, done, stages...) {
+			result = append(result, s.(int))
+		}
+		require.Equal(t, []int{}, result)
+	})
+}
