@@ -1,0 +1,11 @@
+---
+logger:
+  level: "INFO"
+
+database:
+  inmemory: false
+  dsn: "host=127.0.0.1 user=calendar password=calendar dbname=calendar sslmode=disable"
+
+http:
+  host: 0.0.0.0
+  port: 5555
