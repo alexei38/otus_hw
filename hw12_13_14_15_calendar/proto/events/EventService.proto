@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package event;
+option go_package = "./;proto";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+
+service Events {
+  rpc Create (CreateRequest) returns (CreateResponse) {
+    option (google.api.http) = {
+      post: "/v1/events/create"
+      body: "*"
+    };
+  }
+  rpc Update (UpdateRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/events/update"
+      body: "*"
+    };
+  }
+  rpc Delete (DeleteRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteAll (DeleteAllRequest) returns (google.protobuf.Empty) {}
+  rpc ListAll (ListRequest) returns (ListResponse) {}
+  rpc ListDay (ListRequest) returns (ListResponse) {}
+  rpc ListWeek (ListRequest) returns (ListResponse) {}
+  rpc ListMonth (ListRequest) returns (ListResponse) {}
+}
+
+message Event {
+  int32 id = 1;
+  string title = 2;
+  google.protobuf.Timestamp start = 3;
+  google.protobuf.Timestamp stop = 4;
+  string description = 5;
+  int32 UserID = 6;
+  google.protobuf.Timestamp BeforeSend = 7;
+}
+
+message CreateRequest {
+  Event event = 1;
+}
+
+message CreateResponse {
+  int32 eventId = 1;
+}
+
+message UpdateRequest {
+  int32 userId = 1;
+  Event event = 2;
+}
+
+message DeleteRequest {
+  int32 userId = 1;
+  int32 eventId = 2;
+}
+
+message DeleteAllRequest {
+  int32 userId = 1;
+}
+
+message ListRequest {
+  int32 userId = 1;
+  google.protobuf.Timestamp time = 2;
+}
+
+message ListResponse {
+  repeated Event events = 1;
+}
