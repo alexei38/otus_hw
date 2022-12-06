@@ -1,4 +1,4 @@
-package sqlstorage
+package sql
 
 import (
 	"context"
@@ -19,6 +19,7 @@ func TestStorage(t *testing.T) { // nolint: funlen
 	}
 	defer db.Close()
 	s := New()
+	require.NoError(t, err)
 	s.db = sqlx.NewDb(db, "sqlmock")
 
 	err = db.Ping()
@@ -38,7 +39,7 @@ func TestStorage(t *testing.T) { // nolint: funlen
 			Stop:        currDate.Add(time.Hour),
 			Description: fmt.Sprintf("Description-%d", i),
 			UserID:      userID,
-			BeforeSend:  time.Second * 10,
+			BeforeSend:  time.Now().Add(time.Second * -10),
 		}
 		events = append(events, event)
 	}
@@ -50,7 +51,7 @@ func TestStorage(t *testing.T) { // nolint: funlen
 			Stop:        currDate.Add(time.Hour * 2),
 			Description: "Description",
 			UserID:      1,
-			BeforeSend:  time.Second * 10,
+			BeforeSend:  time.Now().Add(time.Second * -10),
 		}
 		query := `INSERT INTO events \(title, start, stop, description, user_id, before_send\)`
 		mock.ExpectPrepare(query)
@@ -81,7 +82,7 @@ func TestStorage(t *testing.T) { // nolint: funlen
 			Stop:        currDate.Add(time.Hour * 3),
 			Description: "Description",
 			UserID:      1,
-			BeforeSend:  time.Second * 10,
+			BeforeSend:  time.Now().Add(time.Second * -10),
 		}
 		query := `UPDATE events
 			  SET title=.+,

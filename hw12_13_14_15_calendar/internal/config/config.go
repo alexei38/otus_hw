@@ -10,14 +10,20 @@ import (
 )
 
 type Config struct {
-	Logger   LoggerConf
-	Database DatabaseConfig
-	HTTP     HTTPConfig
+	Logger  LoggerConf
+	Storage StorageConfig
+	HTTP    HTTPConfig
+	GRPC    GRPCConfig
 }
 
-type DatabaseConfig struct {
-	InMemory bool
-	DSN      string
+type StorageConfig struct {
+	Type             string
+	ConnectionString string
+}
+
+type GRPCConfig struct {
+	Host string
+	Port string
 }
 
 type HTTPConfig struct {
@@ -41,7 +47,7 @@ type LoggerConf struct {
 // - $HOME/.calendar
 // - $PWD/configs
 // - current dir.
-func NewConfig() *Config {
+func NewConfig() (*Config, error) {
 	config := &Config{
 		Logger: LoggerConf{
 			Level: "INFO",
@@ -54,8 +60,8 @@ func NewConfig() *Config {
 			IdleTimeout:  time.Second * 60,
 			ReadTimeout:  time.Second * 60,
 		},
-		Database: DatabaseConfig{
-			InMemory: true,
+		Storage: StorageConfig{
+			Type: "memory",
 		},
 	}
 	cfgFile := viper.GetString("config")
@@ -81,11 +87,11 @@ func NewConfig() *Config {
 	}
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	err = viper.Unmarshal(config)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
-	return config
+	return config, nil
 }

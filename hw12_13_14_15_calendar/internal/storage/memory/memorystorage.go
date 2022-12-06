@@ -1,7 +1,8 @@
-package memorystorage
+package memory
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,19 +12,20 @@ import (
 
 type events map[int]storage.Event
 
-type Memory struct {
+type Storage struct {
 	events events
 	mu     sync.RWMutex
 	nextID int32
 }
 
-func New() *Memory {
-	s := &Memory{}
-	s.events = make(events)
-	return s
+func New() *Storage {
+	return &Storage{
+		events: make(events),
+	}
 }
 
-func (s *Memory) Create(ctx context.Context, event storage.Event) (int, error) {
+func (s *Storage) Create(ctx context.Context, event storage.Event) (int, error) {
+	fmt.Println("Create event")
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	id := s.getID()
@@ -43,10 +45,11 @@ func (s *Memory) Create(ctx context.Context, event storage.Event) (int, error) {
 		UserID:      event.UserID,
 		BeforeSend:  event.BeforeSend,
 	}
+	fmt.Printf("events created %d: %+v\n", id, s.events[id])
 	return id, nil
 }
 
-func (s *Memory) Update(ctx context.Context, id int, change storage.Event) error {
+func (s *Storage) Update(ctx context.Context, id int, change storage.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	event, ok := s.events[id]
@@ -74,7 +77,7 @@ func (s *Memory) Update(ctx context.Context, id int, change storage.Event) error
 	return nil
 }
 
-func (s *Memory) Delete(ctx context.Context, eventID int, userID int) error {
+func (s *Storage) Delete(ctx context.Context, eventID int, userID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	event, ok := s.events[eventID]
@@ -88,7 +91,7 @@ func (s *Memory) Delete(ctx context.Context, eventID int, userID int) error {
 	return nil
 }
 
-func (s *Memory) DeleteAll(ctx context.Context, userID int) error {
+func (s *Storage) DeleteAll(ctx context.Context, userID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, event := range s.events {
@@ -99,15 +102,7 @@ func (s *Memory) DeleteAll(ctx context.Context, userID int) error {
 	return nil
 }
 
-func (s *Memory) Connect(ctx context.Context, _ string) error {
-	return nil
-}
-
-func (s *Memory) Close(ctx context.Context) error {
-	return nil
-}
-
-func (s *Memory) ListAll(ctx context.Context, userID int) ([]storage.Event, error) {
+func (s *Storage) ListAll(ctx context.Context, userID int) ([]storage.Event, error) {
 	var result []storage.Event
 	for _, ev := range s.events {
 		if ev.UserID == userID {
@@ -117,7 +112,7 @@ func (s *Memory) ListAll(ctx context.Context, userID int) ([]storage.Event, erro
 	return result, nil
 }
 
-func (s *Memory) ListDay(ctx context.Context, userID int, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListDay(ctx context.Context, userID int, date time.Time) ([]storage.Event, error) {
 	var result []storage.Event
 	year, month, day := date.Date()
 	for _, ev := range s.events {
@@ -129,7 +124,7 @@ func (s *Memory) ListDay(ctx context.Context, userID int, date time.Time) ([]sto
 	return result, nil
 }
 
-func (s *Memory) ListWeek(ctx context.Context, userID int, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListWeek(ctx context.Context, userID int, date time.Time) ([]storage.Event, error) {
 	var result []storage.Event
 	year, week := date.ISOWeek()
 	for _, ev := range s.events {
@@ -141,7 +136,7 @@ func (s *Memory) ListWeek(ctx context.Context, userID int, date time.Time) ([]st
 	return result, nil
 }
 
-func (s *Memory) ListMonth(ctx context.Context, userID int, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListMonth(ctx context.Context, userID int, date time.Time) ([]storage.Event, error) {
 	var result []storage.Event
 	year, month, _ := date.Date()
 	for _, ev := range s.events {
@@ -153,7 +148,7 @@ func (s *Memory) ListMonth(ctx context.Context, userID int, date time.Time) ([]s
 	return result, nil
 }
 
-func (s *Memory) getID() int {
+func (s *Storage) getID() int {
 	currID := s.nextID
 	atomic.AddInt32(&s.nextID, 1)
 	return int(currID)

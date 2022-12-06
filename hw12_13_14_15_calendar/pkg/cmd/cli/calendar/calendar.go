@@ -2,66 +2,92 @@ package calendar
 
 import (
 	"context"
-	"os"
+	"fmt"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/app"
 	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/config"
 	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/server/http"
+	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/server/grpc"
+	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/server/http"
 	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/storage"
-	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/storage/memorystorage"
-	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/storage/sqlstorage"
+	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/alexei38/otus_hw/hw12_13_14_15_calendar/internal/storage/sql"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
-func Run() {
-	config := config.NewConfig()
-	err := logger.New(config.Logger)
+func Run() error {
+	log.Infof("starting calendar")
+	config, err := config.NewConfig()
 	if err != nil {
-		log.Fatalf("failed initialize logger: %v", err)
+		return fmt.Errorf("failed read config: %w", err)
+	}
+	err = logger.New(config.Logger)
+	if err != nil {
+		return fmt.Errorf("failed initialize logger: %v", err)
 	}
 
-	mainCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	var db storage.Storage
-	if config.Database.InMemory {
-		db = memorystorage.New()
-	} else {
-		db = sqlstorage.New()
-		err := db.Connect(mainCtx, config.Database.DSN)
+	var store storage.Storage
+	switch config.Storage.Type {
+	case "memory":
+		store = memory.New()
+	case "sql":
+		db := sql.New()
+		err := db.Connect(ctx, config.Storage.ConnectionString)
 		if err != nil {
-			log.Fatalf("failed connect to database: %v", err) // nolint: gocritic
+			return fmt.Errorf("failed connect to database: %v", err)
+
 		}
+		store = db
+	default:
+		return fmt.Errorf("unknown storage driver: %s. use sql or memory as storage type", config.Storage.Type)
 	}
+	calendar := app.New(store)
 
-	calendar := app.New(db)
+	errWg, errCtx := errgroup.WithContext(ctx)
 
-	server := internalhttp.NewServer(calendar, config.HTTP)
-
-	ctx, cancel := signal.NotifyContext(context.Background(),
-		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	defer cancel()
-
-	go func() {
-		<-ctx.Done()
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
-
-		if err := server.Stop(ctx); err != nil {
-			log.Errorf("failed to stop http server: %v", err.Error())
+	grpcServer, err := grpc.NewServer(calendar, config)
+	if err != nil {
+		return err
+	}
+	errWg.Go(func() error {
+		if err := grpcServer.Start(); err != nil {
+			return err
 		}
-	}()
+		return nil
+	})
+	errWg.Go(func() error {
+		<-errCtx.Done()
+		stop()
+		grpcServer.Stop()
+		return nil
+	})
 
-	log.Info("calendar is running...")
-
-	if err := server.Start(ctx); err != nil {
-		log.Errorf("failed to start http server: %v", err.Error())
-		cancel()
-		os.Exit(1)
+	httpServer, err := http.NewServer(config)
+	if err != nil {
+		return err
 	}
+	errWg.Go(func() error {
+		if err := httpServer.Start(errCtx); err != nil {
+			return err
+		}
+		return nil
+	})
+	errWg.Go(func() error {
+		<-errCtx.Done()
+		stop()
+		return httpServer.Stop(errCtx)
+	})
+
+	err = errWg.Wait()
+	if err == context.Canceled || err == nil {
+		log.Info("gracefully quit server")
+		return nil
+	}
+	return err
 }

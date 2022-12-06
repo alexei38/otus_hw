@@ -40,4 +40,12 @@ migrate:
 downgrade:
 	goose -dir migrations postgres $(DSN) down
 
+generate:
+	protoc -I ./proto \
+		--go_out ./internal/server/grpc \
+		--go-grpc_out ./internal/server/grpc \
+		--grpc-gateway_out ./internal/server/grpc/ \
+		./proto/events/EventService.proto
+
+
 .PHONY: build run build-img run-img version test lint

@@ -13,13 +13,13 @@ var (
 )
 
 type Event struct {
-	ID          int           `db:"id"`
-	Title       string        `db:"title"`
-	Start       time.Time     `db:"start"`
-	Stop        time.Time     `db:"stop"`
-	Description string        `db:"description"`
-	UserID      int           `db:"user_id"`
-	BeforeSend  time.Duration `db:"before_send"`
+	ID          int       `db:"id"`
+	Title       string    `db:"title"`
+	Start       time.Time `db:"start"`
+	Stop        time.Time `db:"stop"`
+	Description string    `db:"description"`
+	UserID      int       `db:"user_id"`
+	BeforeSend  time.Time `db:"before_send"`
 }
 
 type Notification struct {

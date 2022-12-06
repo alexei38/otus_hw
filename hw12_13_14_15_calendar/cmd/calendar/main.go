@@ -19,16 +19,11 @@ var rootCmd = &cobra.Command{
 
 	Version: cmd.GetVersion(),
 	Run: func(cmd *cobra.Command, args []string) {
-		calendar.Run()
+		if err := calendar.Run(); err != nil {
+			// Если приложение упало, выходим
+			log.Fatalln(err)
+		}
 	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatalln(err)
-	}
 }
 
 func init() {
@@ -41,5 +36,10 @@ func init() {
 }
 
 func main() {
-	Execute()
+	err := rootCmd.Execute()
+	if err != nil {
+		// Тут ошибка возникает только во время валидации аргументов
+		// падаем, если была ошибка
+		log.Fatalln(err)
+	}
 }

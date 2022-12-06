@@ -1,4 +1,4 @@
-package memorystorage
+package memory
 
 import (
 	"context"
@@ -18,7 +18,7 @@ func newEvent(userID int, start, stop time.Time) storage.Event {
 		Stop:        stop,
 		Description: faker.Name(),
 		UserID:      userID,
-		BeforeSend:  time.Second * 10,
+		BeforeSend:  time.Now().Add(time.Second * -10),
 	}
 	return event
 }
